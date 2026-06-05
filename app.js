@@ -657,7 +657,8 @@
 
         const actualStart = fmtDate(Math.min(ptsA[0].t, ptsB[0].t));
         const intro = `<p class="muted small" style="margin:0 0 12px;">
-          Backtest from <strong>${actualStart}</strong> to today, per ${fmtMoney0(chartAmount)} invested.</p>`;
+          Backtest from <strong>${actualStart}</strong> to today, per ${fmtMoney0(chartAmount)} invested.
+          Figures are <strong>total return</strong> — dividends are reinvested.</p>`;
 
         // Trade we'd save/share: prices are the start/end of the backtest window.
         const saveable = { ...t, note: `Backtest from ${actualStart}` };
