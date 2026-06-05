@@ -1,0 +1,6 @@
+name = "occ-finnhub-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# The Finnhub API key is NOT stored here. Set it as a secret instead:
+#   npx wrangler secret put FINNHUB_KEY

@@ -38,6 +38,43 @@ No key? You can still use everything — just type the current prices in by hand
 > Note: a client-side key is visible to anyone using *your* browser/instance.
 > That's fine for a personal tool. Don't commit your key into the repo.
 
+## Live prices without users entering a key (Cloudflare Worker proxy)
+
+By default each visitor pastes their own Finnhub key. If you'd rather have prices
+"just work" for everyone, deploy the tiny proxy in [`worker/`](worker/). Your key
+is stored as a Worker **secret** (never shipped to the browser), and the Worker
+only answers requests from your own site.
+
+You'll need a **free Cloudflare account** — that's the only new account. Steps:
+
+1. **Set the allowed origins.** In [`worker/worker.js`](worker/worker.js), the
+   `ALLOWED_ORIGINS` list already includes `https://jameshawkinsjr.github.io`.
+   Edit it if your Pages URL differs.
+
+2. **Deploy the Worker** (uses `npx`, no global install):
+
+   ```bash
+   cd worker
+   npx wrangler login            # opens browser to authorize (free account)
+   npx wrangler secret put FINNHUB_KEY   # paste your Finnhub key when prompted
+   npx wrangler deploy
+   ```
+
+   Wrangler prints the live URL, e.g. `https://occ-finnhub-proxy.<you>.workers.dev`.
+
+3. **Point the app at it.** In [`app.js`](app.js), set:
+
+   ```js
+   const PROXY_URL = "https://occ-finnhub-proxy.<you>.workers.dev";
+   ```
+
+   Commit and push. Now the Fetch buttons work for everyone with no key entry.
+   (Anyone who *does* enter a personal key in Settings still uses that instead.)
+
+> The Origin check stops other websites from using your proxy in a browser. It's
+> not bulletproof against non-browser clients, but combined with the brief cache
+> and Finnhub's own limits it's plenty for a personal tool.
+
 ## Run locally
 
 It's just static files — open `index.html`, or serve the folder:

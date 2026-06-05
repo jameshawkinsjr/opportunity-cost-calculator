@@ -8,6 +8,12 @@
   const API_KEY = "occ.finnhubKey.v1";
   const FINNHUB = "https://finnhub.io/api/v1/quote";
 
+  // Optional: your deployed Cloudflare Worker proxy (see worker/ + README).
+  // When set, live prices work for everyone with NO key entry — the key stays
+  // secret on the proxy. A personal key entered in Settings still overrides it.
+  // Example: "https://occ-finnhub-proxy.yourname.workers.dev"
+  const PROXY_URL = "";
+
   // ---- helpers --------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
   const fmtMoney = (n) =>
@@ -82,10 +88,21 @@
   }
 
   // ---- live prices ----------------------------------------------------------
+  const proxyConfigured = () => PROXY_URL.trim() !== "";
+  const canFetch = () => proxyConfigured() || !!getKey();
+
   async function fetchQuote(symbol) {
+    const sym = encodeURIComponent(symbol.toUpperCase());
     const key = getKey();
-    if (!key) throw new Error("No API key set");
-    const url = `${FINNHUB}?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${encodeURIComponent(key)}`;
+    let url;
+    if (key) {
+      // A personal key always takes precedence (direct to Finnhub).
+      url = `${FINNHUB}?symbol=${sym}&token=${encodeURIComponent(key)}`;
+    } else if (proxyConfigured()) {
+      url = `${PROXY_URL.trim().replace(/\/$/, "")}/quote?symbol=${sym}`;
+    } else {
+      throw new Error("No price source — add an API key or proxy");
+    }
     const res = await fetch(url);
     if (res.status === 401 || res.status === 403) throw new Error("Invalid API key");
     if (res.status === 429) throw new Error("Rate limited — wait a moment");
@@ -100,8 +117,13 @@
 
   // ---- settings / key UI ----------------------------------------------------
   function refreshKeyStatus() {
-    const has = !!getKey();
-    $("keyStatus").className = "status-dot " + (has ? "ok" : "off");
+    const live = canFetch();
+    $("keyStatus").className = "status-dot " + (live ? "ok" : "off");
+    $("keyStatus").title = getKey()
+      ? "Using your personal API key"
+      : proxyConfigured()
+      ? "Live prices via built-in proxy"
+      : "No live price source set";
     $("apiKey").value = getKey();
   }
 
@@ -370,7 +392,7 @@
       }
     });
     $("refreshAll").addEventListener("click", async () => {
-      if (!getKey()) { $("settings").open = true; msg("keyMsg", "Set an API key to refresh.", "err"); return; }
+      if (!canFetch()) { $("settings").open = true; msg("keyMsg", "Set an API key to refresh.", "err"); return; }
       const trades = loadTrades();
       for (const t of trades) {
         try {
