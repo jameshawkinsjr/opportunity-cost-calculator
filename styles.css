@@ -180,6 +180,18 @@ input::placeholder { color: #5d6577; }
 .value.neg { color: var(--bad); }
 
 /* Backtest / chart */
+.bt-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 16px;
+}
+.bt-presets .btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 .bt-result { margin-top: 18px; }
 .bt-chart-wrap { margin-bottom: 16px; }
 .bt-chart { width: 100%; height: auto; display: block; }

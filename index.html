@@ -151,6 +151,14 @@
             <input type="number" id="btAmount" step="any" min="0" placeholder="10000" />
           </label>
         </div>
+        <div class="bt-presets" id="btPresets">
+          <span class="muted small">Quick range:</span>
+          <button type="button" class="btn small ghost" data-days="30">1M</button>
+          <button type="button" class="btn small ghost" data-days="182">6M</button>
+          <button type="button" class="btn small ghost" data-ytd="1">YTD</button>
+          <button type="button" class="btn small ghost" data-days="365">1Y</button>
+          <button type="button" class="btn small ghost" data-days="1825">5Y</button>
+        </div>
         <div class="row">
           <button type="submit" class="btn primary" id="btRun">Run backtest</button>
           <span class="inline-msg" id="btMsg"></span>

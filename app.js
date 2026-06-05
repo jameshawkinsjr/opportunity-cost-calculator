@@ -603,36 +603,44 @@
     return `<div class="bt-chart-wrap">${svg}${legend}</div>`;
   }
 
-  function initBacktest() {
+  const isoDate = (d) => d.toISOString().slice(0, 10);
+
+  // Date for a preset button: number of days back, or Jan 1 of this year (YTD).
+  function presetDate(btn) {
     const today = new Date();
-    const iso = (d) => d.toISOString().slice(0, 10);
-    $("btDate").max = iso(today);
-    // Default to roughly one year ago.
-    const yearAgo = new Date(today.getTime() - 365 * 24 * 3600 * 1000);
-    $("btDate").value = iso(yearAgo);
+    if (btn.dataset.ytd) return isoDate(new Date(today.getFullYear(), 0, 1));
+    const days = Number(btn.dataset.days);
+    return isoDate(new Date(today.getTime() - days * 24 * 3600 * 1000));
+  }
 
-    $("backtestForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const symA = $("btSold").value.trim().toUpperCase();
-      const symB = $("btBought").value.trim().toUpperCase();
-      const dateStr = $("btDate").value;
-      const amtRaw = $("btAmount").value.trim();
-      const amount = amtRaw === "" ? null : Number(amtRaw);
-      const chartAmount = amount && amount > 0 ? amount : 10000;
+  function markActivePreset() {
+    const cur = $("btDate").value;
+    document.querySelectorAll("#btPresets .btn").forEach((b) => {
+      b.classList.toggle("active", presetDate(b) === cur);
+    });
+  }
 
-      if (!symA || !symB || !dateStr) {
-        msg("btMsg", "Enter both symbols and a date.", "err");
-        return;
-      }
-      const from = Math.floor(new Date(dateStr + "T00:00:00").getTime() / 1000);
-      const to = Math.floor(Date.now() / 1000);
-      if (from >= to) { msg("btMsg", "Pick a date in the past.", "err"); return; }
+  async function runBacktest() {
+    const symA = $("btSold").value.trim().toUpperCase();
+    const symB = $("btBought").value.trim().toUpperCase();
+    const dateStr = $("btDate").value;
+    const amtRaw = $("btAmount").value.trim();
+    const amount = amtRaw === "" ? null : Number(amtRaw);
+    const chartAmount = amount && amount > 0 ? amount : 10000;
 
-      const btn = $("btRun");
-      const old = btn.textContent;
-      btn.textContent = "Running…"; btn.disabled = true;
-      msg("btMsg", "", "");
-      try {
+    if (!symA || !symB || !dateStr) {
+      msg("btMsg", "Enter both symbols and a date.", "err");
+      return;
+    }
+    const from = Math.floor(new Date(dateStr + "T00:00:00").getTime() / 1000);
+    const to = Math.floor(Date.now() / 1000);
+    if (from >= to) { msg("btMsg", "Pick a date in the past.", "err"); return; }
+
+    const btn = $("btRun");
+    const old = btn.textContent;
+    btn.textContent = "Running…"; btn.disabled = true;
+    msg("btMsg", "", "");
+    try {
         const [ptsA, ptsB] = await Promise.all([
           fetchHistory(symA, from, to),
           fetchHistory(symB, from, to),
@@ -662,7 +670,30 @@
       } finally {
         btn.textContent = old; btn.disabled = false;
       }
+  }
+
+  function initBacktest() {
+    const today = new Date();
+    $("btDate").max = isoDate(today);
+    // Default to roughly one year ago (matches the 1Y preset).
+    $("btDate").value = isoDate(new Date(today.getTime() - 365 * 24 * 3600 * 1000));
+
+    $("backtestForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      runBacktest();
     });
+    $("btDate").addEventListener("input", markActivePreset);
+
+    document.querySelectorAll("#btPresets .btn").forEach((b) => {
+      b.addEventListener("click", () => {
+        $("btDate").value = presetDate(b);
+        markActivePreset();
+        // Auto-run only when both symbols are filled in.
+        if ($("btSold").value.trim() && $("btBought").value.trim()) runBacktest();
+      });
+    });
+
+    markActivePreset();
   }
 
   // ---- boot -----------------------------------------------------------------
