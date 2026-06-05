@@ -33,7 +33,7 @@
     const p = {
       s: t.soldSymbol, sp: t.soldPrice, sc: t.soldCurrent,
       b: t.boughtSymbol, bp: t.boughtPrice, bc: t.boughtCurrent,
-      a: t.amount, n: t.note || "",
+      a: t.amount, n: t.note || "", d: t.tradeDate || null, ps: t.priceSource || null,
     };
     return b64urlEncode(JSON.stringify(p));
   }
@@ -47,6 +47,8 @@
       boughtPrice: p.bp ?? null,
       boughtCurrent: p.bc ?? null,
       amount: p.a ?? null,
+      tradeDate: p.d ?? null,
+      priceSource: p.ps ?? null,
       note: p.n || "",
     };
   }
@@ -135,6 +137,7 @@
       boughtPrice: num("boughtPrice"),
       boughtCurrent: num("boughtCurrent"),
       amount: num("amount"),
+      tradeDate: $("tradeDate").value || null,
       note: $("note").value.trim(),
     };
   }
@@ -209,6 +212,8 @@
   }
 
   function initForm() {
+    $("tradeDate").max = new Date().toISOString().slice(0, 10);
+
     ["soldPrice", "soldCurrent", "boughtPrice", "boughtCurrent", "amount",
      "soldSymbol", "boughtSymbol"].forEach((id) =>
       $(id).addEventListener("input", renderPreview));
@@ -226,15 +231,33 @@
       await fetchInto("bought", "boughtSymbol", "boughtCurrent");
     });
 
-    $("tradeForm").addEventListener("submit", (e) => {
+    $("tradeForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const t = readForm();
       if (!t.soldSymbol || !t.boughtSymbol || !(t.soldPrice > 0) || !(t.boughtPrice > 0)) {
         msg("fetchMsg", "Fill in both symbols and buy/sell prices.", "err");
         return;
       }
+      const trade = { id: cryptoId(), savedAt: nowISO(), ...t };
+
+      // With a trade date, current value comes from Yahoo total return
+      // (entry price × adjusted-close ratio), so it tracks dividends as it ages.
+      if (trade.tradeDate) {
+        const btn = e.submitter;
+        const old = btn ? btn.textContent : "";
+        if (btn) { btn.textContent = "Fetching…"; btn.disabled = true; }
+        msg("fetchMsg", "", "");
+        try {
+          await refreshTrade(trade);
+        } catch (err) {
+          msg("fetchMsg", "Saved without prices — " + err.message + " (try Refresh later).", "err");
+        } finally {
+          if (btn) { btn.textContent = old; btn.disabled = false; }
+        }
+      }
+
       const trades = loadTrades();
-      trades.unshift({ id: cryptoId(), savedAt: nowISO(), ...t });
+      trades.unshift(trade);
       saveTrades(trades);
       $("tradeForm").reset();
       $("preview").className = "preview hidden";
@@ -266,7 +289,10 @@
       if (r) cls += r.advantageRet > 0 ? " good" : r.advantageRet < 0 ? " bad" : "";
       card.className = cls;
 
-      const date = t.savedAt ? new Date(t.savedAt).toLocaleDateString() : "";
+      const tradedOn = t.tradeDate
+        ? new Date(t.tradeDate + "T00:00:00").toLocaleDateString()
+        : (t.savedAt ? new Date(t.savedAt).toLocaleDateString() : "");
+      const dateLabel = t.tradeDate ? `traded ${tradedOn}` : tradedOn;
       let verdictTag = '<span class="verdict-tag muted">need current prices</span>';
       let detail = "";
 
@@ -281,6 +307,7 @@
             ? ` · <span class="big-num ${sign(r.advantageDollars)}" style="color:inherit">${(r.advantageDollars >= 0 ? "+" : "") + fmtMoney(r.advantageDollars).replace("$-", "-$")}</span>`
             : "";
         detail = `Stayed ${fmtPct(r.stayingRet)} · Switched ${fmtPct(r.switchingRet)}${dollarBit}`;
+        if (t.priceSource === "total") detail += ` · <span class="muted">incl. dividends</span>`;
       } else {
         detail = "Add or fetch current prices to see the result.";
       }
@@ -297,7 +324,7 @@
         <div class="tc-detail">
           Sold @ ${fmtMoney(t.soldPrice)} · Bought @ ${fmtMoney(t.boughtPrice)}
           ${t.soldCurrent != null ? ` · now ${fmtMoney(t.soldCurrent)} / ${t.boughtCurrent != null ? fmtMoney(t.boughtCurrent) : "?"}` : ""}
-          ${date ? ` · ${date}` : ""}
+          ${dateLabel ? ` · ${dateLabel}` : ""}
         </div>
         <div class="tc-detail">${detail}</div>
         ${t.note ? `<div class="tc-note">“${escapeHTML(t.note)}”</div>` : ""}
@@ -319,6 +346,32 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  // Update a trade's current prices in place. Dated trades use Yahoo total
+  // return (entry price × adjusted-close ratio since the trade date); undated
+  // trades fall back to the live spot quote.
+  async function refreshTrade(t) {
+    if (t.tradeDate) {
+      const from = Math.floor(new Date(t.tradeDate + "T00:00:00").getTime() / 1000);
+      const to = Math.floor(Date.now() / 1000);
+      if (from >= to) throw new Error("Trade date must be in the past");
+      const [pa, pb] = await Promise.all([
+        fetchHistory(t.soldSymbol, from, to),
+        fetchHistory(t.boughtSymbol, from, to),
+      ]);
+      t.soldCurrent = t.soldPrice * (pa[pa.length - 1].c / pa[0].c);
+      t.boughtCurrent = t.boughtPrice * (pb[pb.length - 1].c / pb[0].c);
+      t.priceSource = "total";
+    } else {
+      const [sc, bc] = await Promise.all([
+        fetchQuote(t.soldSymbol),
+        fetchQuote(t.boughtSymbol),
+      ]);
+      t.soldCurrent = sc;
+      t.boughtCurrent = bc;
+      t.priceSource = "spot";
+    }
+  }
+
   async function handleCardAction(act, id, btn) {
     const trades = loadTrades();
     const i = trades.findIndex((t) => t.id === id);
@@ -335,17 +388,15 @@
       return;
     }
     if (act === "refresh") {
+      const old = btn ? btn.textContent : "";
+      if (btn) { btn.textContent = "…"; btn.disabled = true; }
       try {
-        const [sc, bc] = await Promise.all([
-          fetchQuote(trades[i].soldSymbol),
-          fetchQuote(trades[i].boughtSymbol),
-        ]);
-        trades[i].soldCurrent = sc;
-        trades[i].boughtCurrent = bc;
+        await refreshTrade(trades[i]);
         saveTrades(trades);
         renderList();
       } catch (e) {
         msg("listMsg", e.message, "err");
+        if (btn) { btn.textContent = old; btn.disabled = false; }
       }
     }
   }
@@ -362,8 +413,7 @@
       const trades = loadTrades();
       for (const t of trades) {
         try {
-          t.soldCurrent = await fetchQuote(t.soldSymbol);
-          t.boughtCurrent = await fetchQuote(t.boughtSymbol);
+          await refreshTrade(t);
         } catch (e) {
           msg("listMsg", e.message, "err");
         }
@@ -646,7 +696,7 @@
           Figures are <strong>total return</strong> — dividends are reinvested.</p>`;
 
         // Trade we'd save/share: prices are the start/end of the backtest window.
-        const saveable = { ...t, note: `Backtest from ${actualStart}` };
+        const saveable = { ...t, tradeDate: dateStr, priceSource: "total", note: `Backtest from ${actualStart}` };
         const actions = `
           <div class="bt-actions row" style="margin-top:14px;">
             <button type="button" class="btn" id="btSave">Save trade</button>

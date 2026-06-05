@@ -74,6 +74,10 @@
 
         <div class="row wrap">
           <label class="field grow">
+            <span>Trade date (optional)</span>
+            <input type="date" id="tradeDate" />
+          </label>
+          <label class="field grow">
             <span>Amount switched (optional, $)</span>
             <input type="number" id="amount" step="any" min="0" placeholder="e.g. 10000" />
           </label>
@@ -82,6 +86,10 @@
             <input type="text" id="note" placeholder="Why I made the trade" autocomplete="off" />
           </label>
         </div>
+        <p class="muted small" id="tradeDateHint" style="margin:-4px 0 8px;">
+          Add a trade date and the current value tracks Yahoo total return
+          (dividends included) — no need to enter a current price.
+        </p>
 
         <div class="row">
           <button type="button" class="btn ghost" id="fetchBoth">Fetch both live prices</button>
