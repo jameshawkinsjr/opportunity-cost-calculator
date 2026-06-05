@@ -126,23 +126,6 @@ input::placeholder { color: #5d6577; }
   font-size: 28px; color: var(--muted);
 }
 
-/* Settings */
-.settings summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 600;
-}
-.settings summary::-webkit-details-marker { display: none; }
-.settings-body { margin-top: 16px; }
-.status-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--muted); display: inline-block;
-}
-.status-dot.ok { background: var(--good); }
-.status-dot.off { background: var(--muted); }
 .inline-msg { font-size: 13px; color: var(--muted); }
 .inline-msg.ok { color: var(--good); }
 .inline-msg.err { color: var(--bad); }

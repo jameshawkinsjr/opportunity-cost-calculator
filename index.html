@@ -16,35 +16,6 @@
   </header>
 
   <main>
-    <!-- Settings / API key -->
-    <details class="card settings" id="settings">
-      <summary>
-        <span>⚙️ Settings &amp; live prices</span>
-        <span class="status-dot" id="keyStatus" title="API key status"></span>
-      </summary>
-      <div class="settings-body">
-        <p class="muted">
-          Live prices are fetched from
-          <a href="https://finnhub.io/register" target="_blank" rel="noopener">Finnhub</a>
-          (free tier). Paste your API key below — it is stored only in your
-          browser's local storage and never sent anywhere except Finnhub.
-        </p>
-        <label class="field">
-          <span>Finnhub API key</span>
-          <input type="password" id="apiKey" placeholder="e.g. cXXXXXXXXXXXXXXXX" autocomplete="off" />
-        </label>
-        <div class="row">
-          <button class="btn" id="saveKey">Save key</button>
-          <button class="btn ghost" id="testKey">Test (AAPL)</button>
-          <span class="inline-msg" id="keyMsg"></span>
-        </div>
-        <p class="muted small">
-          No key? You can still use the calculator by typing in current prices
-          manually below.
-        </p>
-      </div>
-    </details>
-
     <!-- Trade entry form -->
     <section class="card">
       <h2>Add a trade</h2>
@@ -115,6 +86,7 @@
         <div class="row">
           <button type="button" class="btn ghost" id="fetchBoth">Fetch both live prices</button>
           <button type="submit" class="btn primary">Calculate &amp; save</button>
+          <span class="inline-msg" id="fetchMsg"></span>
         </div>
       </form>
 
@@ -172,6 +144,7 @@
       <div class="row between">
         <h2>Saved trades</h2>
         <div class="row">
+          <span class="inline-msg" id="listMsg"></span>
           <button class="btn small ghost" id="refreshAll">Refresh prices</button>
           <button class="btn small ghost danger" id="clearAll">Clear all</button>
         </div>

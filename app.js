@@ -52,7 +52,6 @@
   }
 
   const getKey = () => localStorage.getItem(API_KEY) || "";
-  const setKey = (k) => localStorage.setItem(API_KEY, k);
 
   const loadTrades = () => {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
@@ -114,38 +113,6 @@
       throw new Error("No price for " + symbol.toUpperCase());
     }
     return data.c;
-  }
-
-  // ---- settings / key UI ----------------------------------------------------
-  function refreshKeyStatus() {
-    const live = canFetch();
-    $("keyStatus").className = "status-dot " + (live ? "ok" : "off");
-    $("keyStatus").title = getKey()
-      ? "Using your personal API key"
-      : proxyConfigured()
-      ? "Live prices via built-in proxy"
-      : "No live price source set";
-    $("apiKey").value = getKey();
-  }
-
-  function initSettings() {
-    refreshKeyStatus();
-    $("saveKey").addEventListener("click", () => {
-      setKey($("apiKey").value.trim());
-      refreshKeyStatus();
-      msg("keyMsg", getKey() ? "Saved." : "Key cleared.", getKey() ? "ok" : "");
-    });
-    $("testKey").addEventListener("click", async () => {
-      setKey($("apiKey").value.trim());
-      refreshKeyStatus();
-      msg("keyMsg", "Testing…", "");
-      try {
-        const p = await fetchQuote("AAPL");
-        msg("keyMsg", `Works — AAPL ${fmtMoney(p)}`, "ok");
-      } catch (e) {
-        msg("keyMsg", e.message, "err");
-      }
-    });
   }
 
   function msg(id, text, cls) {
@@ -226,7 +193,7 @@
 
   async function fetchInto(which, symbolId, targetId) {
     const symbol = $(symbolId).value.trim();
-    if (!symbol) { msg("keyMsg", "Enter a symbol first.", "err"); return; }
+    if (!symbol) { msg("fetchMsg", "Enter a symbol first.", "err"); return; }
     const btn = document.querySelector(`[data-fetch="${which}"]`);
     const old = btn ? btn.textContent : "";
     if (btn) { btn.textContent = "…"; btn.disabled = true; }
@@ -235,8 +202,7 @@
       $(targetId).value = price;
       renderPreview();
     } catch (e) {
-      msg("keyMsg", e.message, "err");
-      $("settings").open = true;
+      msg("fetchMsg", e.message, "err");
     } finally {
       if (btn) { btn.textContent = old; btn.disabled = false; }
     }
@@ -264,7 +230,7 @@
       e.preventDefault();
       const t = readForm();
       if (!t.soldSymbol || !t.boughtSymbol || !(t.soldPrice > 0) || !(t.boughtPrice > 0)) {
-        msg("keyMsg", "Fill in both symbols and buy/sell prices.", "err");
+        msg("fetchMsg", "Fill in both symbols and buy/sell prices.", "err");
         return;
       }
       const trades = loadTrades();
@@ -379,8 +345,7 @@
         saveTrades(trades);
         renderList();
       } catch (e) {
-        msg("keyMsg", e.message, "err");
-        $("settings").open = true;
+        msg("listMsg", e.message, "err");
       }
     }
   }
@@ -393,14 +358,14 @@
       }
     });
     $("refreshAll").addEventListener("click", async () => {
-      if (!canFetch()) { $("settings").open = true; msg("keyMsg", "Set an API key to refresh.", "err"); return; }
+      if (!canFetch()) { msg("listMsg", "No live price source available.", "err"); return; }
       const trades = loadTrades();
       for (const t of trades) {
         try {
           t.soldCurrent = await fetchQuote(t.soldSymbol);
           t.boughtCurrent = await fetchQuote(t.boughtSymbol);
         } catch (e) {
-          msg("keyMsg", e.message, "err");
+          msg("listMsg", e.message, "err");
         }
       }
       saveTrades(trades);
@@ -677,7 +642,6 @@
       } catch (err) {
         $("btResult").className = "bt-result hidden";
         msg("btMsg", err.message, "err");
-        if (/proxy/i.test(err.message)) $("settings").open = true;
       } finally {
         btn.textContent = old; btn.disabled = false;
       }
@@ -725,7 +689,6 @@
   }
 
   // ---- boot -----------------------------------------------------------------
-  initSettings();
   initForm();
   initListControls();
   initShareModal();
