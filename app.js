@@ -517,11 +517,160 @@
     });
   }
 
+  // ---- backtest / visualizer ------------------------------------------------
+  const fmtMoney0 = (n) => "$" + Math.round(n).toLocaleString();
+  const fmtDate = (unixSec) => new Date(unixSec * 1000).toLocaleDateString(
+    undefined, { year: "numeric", month: "short", day: "numeric" });
+
+  async function fetchHistory(symbol, from, to) {
+    if (!proxyConfigured()) {
+      throw new Error("Backtesting needs the price proxy configured (see README).");
+    }
+    const url = `${PROXY_URL.trim().replace(/\/$/, "")}/history` +
+      `?symbol=${encodeURIComponent(symbol.toUpperCase())}&from=${from}&to=${to}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      let m = "History HTTP " + res.status;
+      try { const e = await res.json(); if (e.error) m = e.error; } catch {}
+      throw new Error(m);
+    }
+    const data = await res.json();
+    if (!data.points || !data.points.length) throw new Error("No history for " + symbol.toUpperCase());
+    return data.points; // [{ t, c }]
+  }
+
+  function renderBacktestChart(a, b, chartAmount) {
+    // a, b: { symbol, points: [{ t, c }] }. Normalize each to chartAmount.
+    const norm = (pts) => {
+      const c0 = pts[0].c;
+      return pts.map((p) => ({ t: p.t, v: (chartAmount * p.c) / c0 }));
+    };
+    const A = norm(a.points), B = norm(b.points);
+    const all = A.concat(B);
+    const tMin = Math.min(...all.map((p) => p.t));
+    const tMax = Math.max(...all.map((p) => p.t));
+    let vMin = Math.min(...all.map((p) => p.v), chartAmount);
+    let vMax = Math.max(...all.map((p) => p.v), chartAmount);
+    const padV = (vMax - vMin) * 0.08 || 1;
+    vMin -= padV; vMax += padV;
+
+    const W = 680, H = 320;
+    const pad = { l: 64, r: 16, t: 16, b: 32 };
+    const x = (t) => pad.l + ((t - tMin) / (tMax - tMin || 1)) * (W - pad.l - pad.r);
+    const y = (v) => pad.t + (1 - (v - vMin) / (vMax - vMin || 1)) * (H - pad.t - pad.b);
+    const line = (S) => S.map((p, i) => (i ? "L" : "M") + x(p.t).toFixed(1) + " " + y(p.v).toFixed(1)).join(" ");
+
+    // Horizontal gridlines + money labels.
+    let grid = "";
+    const TICKS = 4;
+    for (let i = 0; i <= TICKS; i++) {
+      const v = vMin + (i / TICKS) * (vMax - vMin);
+      const yy = y(v).toFixed(1);
+      grid += `<line class="grid-line" x1="${pad.l}" y1="${yy}" x2="${W - pad.r}" y2="${yy}"/>`;
+      grid += `<text class="axis-label" x="${pad.l - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${fmtMoney0(v)}</text>`;
+    }
+
+    const baseY = y(chartAmount).toFixed(1);
+    const endA = A[A.length - 1], endB = B[B.length - 1];
+
+    const dateLabels =
+      `<text class="axis-label" x="${pad.l}" y="${H - 10}" text-anchor="start">${fmtDate(tMin)}</text>` +
+      `<text class="axis-label" x="${W - pad.r}" y="${H - 10}" text-anchor="end">${fmtDate(tMax)}</text>`;
+
+    const svg = `
+      <svg class="bt-chart" viewBox="0 0 ${W} ${H}" role="img"
+           aria-label="Value over time of ${escapeHTML(a.symbol)} versus ${escapeHTML(b.symbol)}">
+        ${grid}
+        <line class="base-line" x1="${pad.l}" y1="${baseY}" x2="${W - pad.r}" y2="${baseY}"/>
+        <text class="axis-label" x="${W - pad.r}" y="${(+baseY - 5).toFixed(1)}" text-anchor="end">${fmtMoney0(chartAmount)} start</text>
+        <path class="series line-a" d="${line(A)}"/>
+        <path class="series line-b" d="${line(B)}"/>
+        <circle class="dot-a" cx="${x(endA.t).toFixed(1)}" cy="${y(endA.v).toFixed(1)}" r="3.5"/>
+        <circle class="dot-b" cx="${x(endB.t).toFixed(1)}" cy="${y(endB.v).toFixed(1)}" r="3.5"/>
+        ${dateLabels}
+      </svg>`;
+
+    const legend = `
+      <div class="bt-legend">
+        <span class="item"><span class="swatch" style="background:var(--bad)"></span>
+          <strong>${escapeHTML(a.symbol)}</strong> (stayed)
+          <span class="final">→ ${fmtMoney(endA.v)}</span></span>
+        <span class="item"><span class="swatch" style="background:var(--good)"></span>
+          <strong>${escapeHTML(b.symbol)}</strong> (switched)
+          <span class="final">→ ${fmtMoney(endB.v)}</span></span>
+      </div>`;
+
+    return `<div class="bt-chart-wrap">${svg}${legend}</div>`;
+  }
+
+  function initBacktest() {
+    const today = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    $("btDate").max = iso(today);
+    // Default to roughly one year ago.
+    const yearAgo = new Date(today.getTime() - 365 * 24 * 3600 * 1000);
+    $("btDate").value = iso(yearAgo);
+
+    $("backtestForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const symA = $("btSold").value.trim().toUpperCase();
+      const symB = $("btBought").value.trim().toUpperCase();
+      const dateStr = $("btDate").value;
+      const amtRaw = $("btAmount").value.trim();
+      const amount = amtRaw === "" ? null : Number(amtRaw);
+      const chartAmount = amount && amount > 0 ? amount : 10000;
+
+      if (!symA || !symB || !dateStr) {
+        msg("btMsg", "Enter both symbols and a date.", "err");
+        return;
+      }
+      const from = Math.floor(new Date(dateStr + "T00:00:00").getTime() / 1000);
+      const to = Math.floor(Date.now() / 1000);
+      if (from >= to) { msg("btMsg", "Pick a date in the past.", "err"); return; }
+
+      const btn = $("btRun");
+      const old = btn.textContent;
+      btn.textContent = "Running…"; btn.disabled = true;
+      msg("btMsg", "", "");
+      try {
+        const [ptsA, ptsB] = await Promise.all([
+          fetchHistory(symA, from, to),
+          fetchHistory(symB, from, to),
+        ]);
+        const a = { symbol: symA, points: ptsA };
+        const b = { symbol: symB, points: ptsB };
+
+        // Build a trade object so we reuse the existing verdict UI.
+        const t = {
+          soldSymbol: symA, soldPrice: ptsA[0].c, soldCurrent: ptsA[ptsA.length - 1].c,
+          boughtSymbol: symB, boughtPrice: ptsB[0].c, boughtCurrent: ptsB[ptsB.length - 1].c,
+          amount,
+        };
+        const r = compute(t);
+
+        const actualStart = fmtDate(Math.min(ptsA[0].t, ptsB[0].t));
+        const intro = `<p class="muted small" style="margin:0 0 12px;">
+          Backtest from <strong>${actualStart}</strong> to today, per ${fmtMoney0(chartAmount)} invested.</p>`;
+
+        $("btResult").className = "bt-result";
+        $("btResult").innerHTML = intro + renderBacktestChart(a, b, chartAmount) + verdictHTML(t, r, false);
+        msg("btMsg", "", "");
+      } catch (err) {
+        $("btResult").className = "bt-result hidden";
+        msg("btMsg", err.message, "err");
+        if (/proxy/i.test(err.message)) $("settings").open = true;
+      } finally {
+        btn.textContent = old; btn.disabled = false;
+      }
+    });
+  }
+
   // ---- boot -----------------------------------------------------------------
   initSettings();
   initForm();
   initListControls();
   initShareModal();
+  initBacktest();
   renderList();
   checkSharedOnLoad();
 })();

@@ -122,6 +122,43 @@
       <div id="preview" class="preview hidden"></div>
     </section>
 
+    <!-- Backtest / visualizer -->
+    <section class="card">
+      <h2>Backtest a trade</h2>
+      <p class="muted">
+        Pick two stocks and a date in the past. We'll chart how your money would
+        have grown if you'd <strong>sold the first</strong> and
+        <strong>bought the second</strong> that day — and whether the switch paid off.
+      </p>
+      <form id="backtestForm">
+        <div class="row wrap">
+          <label class="field grow">
+            <span>Sold / stayed in (symbol)</span>
+            <input type="text" id="btSold" placeholder="AAPL" autocapitalize="characters" autocomplete="off" required />
+          </label>
+          <label class="field grow">
+            <span>Bought / switched to (symbol)</span>
+            <input type="text" id="btBought" placeholder="NVDA" autocapitalize="characters" autocomplete="off" required />
+          </label>
+        </div>
+        <div class="row wrap">
+          <label class="field grow">
+            <span>Trade date</span>
+            <input type="date" id="btDate" required />
+          </label>
+          <label class="field grow">
+            <span>Amount invested (optional, $)</span>
+            <input type="number" id="btAmount" step="any" min="0" placeholder="10000" />
+          </label>
+        </div>
+        <div class="row">
+          <button type="submit" class="btn primary" id="btRun">Run backtest</button>
+          <span class="inline-msg" id="btMsg"></span>
+        </div>
+      </form>
+      <div id="btResult" class="bt-result hidden"></div>
+    </section>
+
     <!-- Saved trades -->
     <section class="card">
       <div class="row between">

@@ -179,6 +179,29 @@ input::placeholder { color: #5d6577; }
 .value.pos { color: var(--good); }
 .value.neg { color: var(--bad); }
 
+/* Backtest / chart */
+.bt-result { margin-top: 18px; }
+.bt-chart-wrap { margin-bottom: 16px; }
+.bt-chart { width: 100%; height: auto; display: block; }
+.bt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 10px 2px 0;
+  font-size: 13px;
+}
+.bt-legend .item { display: flex; align-items: center; gap: 7px; }
+.bt-legend .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.bt-legend .item .final { color: var(--muted); }
+.bt-chart .grid-line { stroke: var(--border); stroke-width: 1; }
+.bt-chart .base-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; opacity: .6; }
+.bt-chart .axis-label { fill: var(--muted); font-size: 11px; }
+.bt-chart .line-a { stroke: var(--bad); }
+.bt-chart .line-b { stroke: var(--good); }
+.bt-chart .series { fill: none; stroke-width: 2.5; }
+.bt-chart .dot-a { fill: var(--bad); }
+.bt-chart .dot-b { fill: var(--good); }
+
 /* Saved list */
 .trade-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
 .trade-card {
@@ -213,6 +236,8 @@ input::placeholder { color: #5d6577; }
   justify-content: center;
   padding: 20px;
   z-index: 50;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .modal {
   background: var(--card);
@@ -222,6 +247,9 @@ input::placeholder { color: #5d6577; }
   padding: 24px;
   width: 100%;
   max-width: 520px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  margin: auto;
 }
 .modal h2 { margin: 0 0 4px; font-size: 20px; }
 
@@ -272,6 +300,8 @@ input::placeholder { color: #5d6577; }
 @media (max-width: 640px) {
   .share-legs { grid-template-columns: 1fr; }
   .share-leg-arrow { transform: rotate(90deg); }
+  .modal-overlay { padding: 12px; }
+  .modal { padding: 18px; max-height: calc(100vh - 24px); }
 }
 
 @media (max-width: 640px) {
