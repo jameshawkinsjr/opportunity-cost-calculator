@@ -292,8 +292,28 @@ input::placeholder { color: #5d6577; }
 .share-total .label { font-size: 13px; color: var(--muted); }
 .share-total .value { font-size: 18px; font-weight: 700; }
 
+.share-outcomes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.share-outcomes .outcome {
+  background: rgba(0,0,0,.18);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--muted);
+}
+.share-outcomes .outcome.stayed { border-left-color: var(--bad); }
+.share-outcomes .outcome.switched { border-left-color: var(--good); }
+.share-outcomes .label { font-size: 12px; color: var(--muted); }
+.share-outcomes .value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+.share-outcomes .outcome.stayed .value { color: var(--bad); }
+.share-outcomes .outcome.switched .value { color: var(--good); }
+
 @media (max-width: 640px) {
   .share-legs { grid-template-columns: 1fr; }
+  .share-outcomes { grid-template-columns: 1fr; }
   .share-leg-arrow { transform: rotate(90deg); }
   .modal-overlay { padding: 12px; }
   .modal { padding: 18px; max-height: calc(100vh - 24px); }

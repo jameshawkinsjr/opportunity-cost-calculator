@@ -436,11 +436,31 @@
         ${leg("bought", "Bought", t.boughtSymbol, t.boughtPrice, t.boughtCurrent)}
       </div>`;
 
-    const total = t.amount != null && t.amount > 0
+    const hasAmount = t.amount != null && t.amount > 0;
+    const total = hasAmount
       ? `<div class="share-total">
            <span class="label">Total amount switched</span>
            <span class="value">${fmtMoney(t.amount)}</span>
          </div>`
+      : "";
+
+    // Dollar value the amount would be worth each way (needs amount + prices).
+    const outcomes = hasAmount && r
+      ? (() => {
+          const stayedVal = t.amount * (t.soldCurrent / t.soldPrice);
+          const switchedVal = t.amount * (t.boughtCurrent / t.boughtPrice);
+          return `
+            <div class="share-outcomes">
+              <div class="outcome stayed">
+                <div class="label">If you'd stayed in ${escapeHTML(t.soldSymbol)}</div>
+                <div class="value">${fmtMoney(stayedVal)}</div>
+              </div>
+              <div class="outcome switched">
+                <div class="label">After switching to ${escapeHTML(t.boughtSymbol)}</div>
+                <div class="value">${fmtMoney(switchedVal)}</div>
+              </div>
+            </div>`;
+        })()
       : "";
 
     const note = t.note ? `<div class="tc-note" style="margin-bottom:12px;">“${escapeHTML(t.note)}”</div>` : "";
@@ -448,7 +468,7 @@
     const result = r ? verdictHTML(t, r, false) :
       `<p class="muted small">No current prices included — save it, then hit Refresh to compute the result.</p>`;
 
-    body.innerHTML = legs + total + note + result;
+    body.innerHTML = legs + total + outcomes + note + result;
     $("shareModal").classList.remove("hidden");
   }
 
