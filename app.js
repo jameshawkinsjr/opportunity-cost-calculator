@@ -7,12 +7,13 @@
   const STORE_KEY = "occ.trades.v1";
   const API_KEY = "occ.finnhubKey.v1";
   const FINNHUB = "https://finnhub.io/api/v1/quote";
+  
 
   // Optional: your deployed Cloudflare Worker proxy (see worker/ + README).
   // When set, live prices work for everyone with NO key entry — the key stays
   // secret on the proxy. A personal key entered in Settings still overrides it.
   // Example: "https://occ-finnhub-proxy.yourname.workers.dev"
-  const PROXY_URL = "";
+  const PROXY_URL = "https://occ-finnhub-proxy.occ-finnhub-proxy.workers.dev";
 
   // ---- helpers --------------------------------------------------------------
   const $ = (id) => document.getElementById(id);

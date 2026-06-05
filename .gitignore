@@ -1,2 +1,6 @@
 .DS_Store
 *.log
+
+# Cloudflare Wrangler local state (may contain account info)
+worker/.wrangler/
+.dev.vars
