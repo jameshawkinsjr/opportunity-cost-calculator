@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#181b24"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" fill="none" stroke="#2a2f3c"/>
+  <!-- up arrow (good / switched) -->
+  <path d="M20 44 L20 26 M13 33 L20 26 L27 33" fill="none" stroke="#2fbf71"
+        stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- down arrow (stayed / opportunity cost) -->
+  <path d="M44 20 L44 38 M37 31 L44 38 L51 31" fill="none" stroke="#ff5d6c"
+        stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
