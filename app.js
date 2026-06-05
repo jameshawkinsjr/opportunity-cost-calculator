@@ -344,7 +344,7 @@
     });
 
     list.querySelectorAll("[data-act]").forEach((btn) => {
-      btn.addEventListener("click", () => handleCardAction(btn.dataset.act, btn.dataset.id));
+      btn.addEventListener("click", () => handleCardAction(btn.dataset.act, btn.dataset.id, btn));
     });
   }
 
@@ -353,7 +353,7 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  async function handleCardAction(act, id) {
+  async function handleCardAction(act, id, btn) {
     const trades = loadTrades();
     const i = trades.findIndex((t) => t.id === id);
     if (i < 0) return;
@@ -365,7 +365,7 @@
       return;
     }
     if (act === "share") {
-      await shareTrade(trades[i], id);
+      await shareTrade(trades[i], btn);
       return;
     }
     if (act === "refresh") {
@@ -414,9 +414,8 @@
     return base + "#share=" + encodeTrade(t);
   }
 
-  async function shareTrade(t, id) {
+  async function shareTrade(t, btn) {
     const url = shareURL(t);
-    const btn = document.querySelector(`[data-act="share"][data-id="${id}"]`);
     let copied = false;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -660,8 +659,19 @@
         const intro = `<p class="muted small" style="margin:0 0 12px;">
           Backtest from <strong>${actualStart}</strong> to today, per ${fmtMoney0(chartAmount)} invested.</p>`;
 
+        // Trade we'd save/share: prices are the start/end of the backtest window.
+        const saveable = { ...t, note: `Backtest from ${actualStart}` };
+        const actions = `
+          <div class="bt-actions row" style="margin-top:14px;">
+            <button type="button" class="btn" id="btSave">Save trade</button>
+            <button type="button" class="btn ghost" id="btShare">Share</button>
+            <span class="inline-msg" id="btActionMsg"></span>
+          </div>`;
+
         $("btResult").className = "bt-result";
-        $("btResult").innerHTML = intro + renderBacktestChart(a, b, chartAmount) + verdictHTML(t, r, false);
+        $("btResult").innerHTML =
+          intro + renderBacktestChart(a, b, chartAmount) + verdictHTML(t, r, false) + actions;
+        wireBacktestActions(saveable);
         msg("btMsg", "", "");
       } catch (err) {
         $("btResult").className = "bt-result hidden";
@@ -670,6 +680,23 @@
       } finally {
         btn.textContent = old; btn.disabled = false;
       }
+  }
+
+  function wireBacktestActions(saveable) {
+    const saveBtn = $("btSave");
+    const shareBtn = $("btShare");
+
+    saveBtn.addEventListener("click", () => {
+      const trades = loadTrades();
+      trades.unshift({ id: cryptoId(), savedAt: nowISO(), ...saveable });
+      saveTrades(trades);
+      renderList();
+      saveBtn.textContent = "Saved ✓";
+      saveBtn.disabled = true;
+      msg("btActionMsg", "Added to your saved trades below.", "ok");
+    });
+
+    shareBtn.addEventListener("click", () => shareTrade(saveable, shareBtn));
   }
 
   function initBacktest() {
