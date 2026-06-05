@@ -202,6 +202,29 @@ input::placeholder { color: #5d6577; }
 .trade-card .tc-actions { margin-top: 10px; display: flex; gap: 8px; }
 .trade-card .big-num { font-weight: 700; }
 
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 12, 0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+}
+.modal h2 { margin: 0 0 4px; font-size: 20px; }
+
 @media (max-width: 640px) {
   .trade-grid { grid-template-columns: 1fr; }
   .swap-arrow { transform: rotate(90deg); }

@@ -7,6 +7,8 @@ that pay off, or should I have stayed put?"**
 - Fetch live current prices (or type them in manually).
 - See whether switching beat staying — as a percentage and, optionally, in dollars.
 - Trades are saved in your browser's **local storage** so you can track several over time.
+- **Share** any trade as a link — the details are encoded in the URL hash (nothing
+  hits a server). Opening a shared link pops a modal to save it to your own trades.
 
 Everything runs client-side. There is no server and no data leaves your browser
 (except the symbol lookups you send to Finnhub).

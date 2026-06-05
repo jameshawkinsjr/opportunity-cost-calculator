@@ -135,6 +135,19 @@
     </section>
   </main>
 
+  <!-- Shared-trade import modal -->
+  <div class="modal-overlay hidden" id="shareModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <h2 id="shareModalTitle">Someone shared a trade with you</h2>
+      <p class="muted small">Review it below, then save it to your own trades or dismiss it.</p>
+      <div id="shareModalBody"></div>
+      <div class="row" style="margin-top:16px; justify-content:flex-end;">
+        <button class="btn ghost" id="shareDismiss">Dismiss</button>
+        <button class="btn primary" id="shareSave">Save to my trades</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <p class="muted small">
       Educational tool only — not investment advice. Prices may be delayed.

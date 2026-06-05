@@ -15,6 +15,35 @@
   const fmtPct = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
   const sign = (n) => (n > 0 ? "pos" : n < 0 ? "neg" : "");
 
+  // UTF-8-safe base64url, for sharing trades via the URL hash.
+  const b64urlEncode = (str) =>
+    btoa(unescape(encodeURIComponent(str)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const b64urlDecode = (str) =>
+    decodeURIComponent(escape(atob(str.replace(/-/g, "+").replace(/_/g, "/"))));
+
+  function encodeTrade(t) {
+    const p = {
+      s: t.soldSymbol, sp: t.soldPrice, sc: t.soldCurrent,
+      b: t.boughtSymbol, bp: t.boughtPrice, bc: t.boughtCurrent,
+      a: t.amount, n: t.note || "",
+    };
+    return b64urlEncode(JSON.stringify(p));
+  }
+  function decodeTrade(code) {
+    const p = JSON.parse(b64urlDecode(code));
+    return {
+      soldSymbol: String(p.s || "").toUpperCase(),
+      soldPrice: p.sp ?? null,
+      soldCurrent: p.sc ?? null,
+      boughtSymbol: String(p.b || "").toUpperCase(),
+      boughtPrice: p.bp ?? null,
+      boughtCurrent: p.bc ?? null,
+      amount: p.a ?? null,
+      note: p.n || "",
+    };
+  }
+
   const getKey = () => localStorage.getItem(API_KEY) || "";
   const setKey = (k) => localStorage.setItem(API_KEY, k);
 
@@ -285,6 +314,7 @@
         ${t.note ? `<div class="tc-note">“${escapeHTML(t.note)}”</div>` : ""}
         <div class="tc-actions">
           <button class="btn small ghost" data-act="refresh" data-id="${t.id}">Refresh</button>
+          <button class="btn small ghost" data-act="share" data-id="${t.id}">Share</button>
           <button class="btn small ghost danger" data-act="delete" data-id="${t.id}">Delete</button>
         </div>`;
       list.appendChild(card);
@@ -309,6 +339,10 @@
       trades.splice(i, 1);
       saveTrades(trades);
       renderList();
+      return;
+    }
+    if (act === "share") {
+      await shareTrade(trades[i], id);
       return;
     }
     if (act === "refresh") {
@@ -351,9 +385,99 @@
     });
   }
 
+  // ---- sharing --------------------------------------------------------------
+  function shareURL(t) {
+    const base = location.origin + location.pathname;
+    return base + "#share=" + encodeTrade(t);
+  }
+
+  async function shareTrade(t, id) {
+    const url = shareURL(t);
+    const btn = document.querySelector(`[data-act="share"][data-id="${id}"]`);
+    let copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      }
+    } catch { /* fall through to native share / prompt */ }
+
+    if (!copied && navigator.share) {
+      try {
+        await navigator.share({ title: "Stock trade", text: `${t.soldSymbol} → ${t.boughtSymbol}`, url });
+        return;
+      } catch { /* user cancelled or unsupported */ }
+    }
+    if (copied && btn) {
+      const old = btn.textContent;
+      btn.textContent = "Link copied!";
+      setTimeout(() => { btn.textContent = old; }, 1800);
+    } else if (!copied) {
+      // Last resort: let the user copy it manually.
+      prompt("Copy this share link:", url);
+    }
+  }
+
+  let pendingShared = null;
+
+  function checkSharedOnLoad() {
+    const m = location.hash.match(/^#share=(.+)$/);
+    if (!m) return;
+    let t;
+    try { t = decodeTrade(m[1]); } catch { clearShareHash(); return; }
+    if (!t.soldSymbol || !t.boughtSymbol) { clearShareHash(); return; }
+    pendingShared = t;
+    openShareModal(t);
+  }
+
+  function openShareModal(t) {
+    const body = $("shareModalBody");
+    const r = compute(t);
+    let summary = `
+      <div class="tc-detail" style="margin:8px 0 12px;">
+        <strong>${escapeHTML(t.soldSymbol)}</strong> → <strong>${escapeHTML(t.boughtSymbol)}</strong><br>
+        Sold @ ${fmtMoney(t.soldPrice)} · Bought @ ${fmtMoney(t.boughtPrice)}
+        ${t.note ? `<div class="tc-note">“${escapeHTML(t.note)}”</div>` : ""}
+      </div>`;
+    body.innerHTML = summary + (r ? verdictHTML(t, r, false) :
+      `<p class="muted small">No current prices included — save it, then hit Refresh to compute the result.</p>`);
+    $("shareModal").classList.remove("hidden");
+  }
+
+  function clearShareHash() {
+    // Remove the hash without reloading or leaving a "#" behind.
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
+  function closeShareModal() {
+    $("shareModal").classList.add("hidden");
+    pendingShared = null;
+    clearShareHash();
+  }
+
+  function initShareModal() {
+    $("shareDismiss").addEventListener("click", closeShareModal);
+    $("shareModal").addEventListener("click", (e) => {
+      if (e.target.id === "shareModal") closeShareModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$("shareModal").classList.contains("hidden")) closeShareModal();
+    });
+    $("shareSave").addEventListener("click", () => {
+      if (!pendingShared) { closeShareModal(); return; }
+      const trades = loadTrades();
+      trades.unshift({ id: cryptoId(), savedAt: nowISO(), ...pendingShared });
+      saveTrades(trades);
+      closeShareModal();
+      renderList();
+    });
+  }
+
   // ---- boot -----------------------------------------------------------------
   initSettings();
   initForm();
   initListControls();
+  initShareModal();
   renderList();
+  checkSharedOnLoad();
 })();
