@@ -456,14 +456,35 @@
   function openShareModal(t) {
     const body = $("shareModalBody");
     const r = compute(t);
-    let summary = `
-      <div class="tc-detail" style="margin:8px 0 12px;">
-        <strong>${escapeHTML(t.soldSymbol)}</strong> → <strong>${escapeHTML(t.boughtSymbol)}</strong><br>
-        Sold @ ${fmtMoney(t.soldPrice)} · Bought @ ${fmtMoney(t.boughtPrice)}
-        ${t.note ? `<div class="tc-note">“${escapeHTML(t.note)}”</div>` : ""}
+
+    const leg = (kind, label, symbol, price, current) => `
+      <div class="share-leg ${kind}">
+        <div class="leg-label">${label}</div>
+        <div class="leg-symbol">${escapeHTML(symbol)}</div>
+        <div class="leg-price">${fmtMoney(price)}<span class="leg-sub">price ${kind === "sold" ? "when sold" : "when bought"}</span></div>
+        ${current != null ? `<div class="leg-now">Now <strong>${fmtMoney(current)}</strong></div>` : ""}
       </div>`;
-    body.innerHTML = summary + (r ? verdictHTML(t, r, false) :
-      `<p class="muted small">No current prices included — save it, then hit Refresh to compute the result.</p>`);
+
+    const legs = `
+      <div class="share-legs">
+        ${leg("sold", "Sold", t.soldSymbol, t.soldPrice, t.soldCurrent)}
+        <div class="share-leg-arrow" aria-hidden="true">→</div>
+        ${leg("bought", "Bought", t.boughtSymbol, t.boughtPrice, t.boughtCurrent)}
+      </div>`;
+
+    const total = t.amount != null && t.amount > 0
+      ? `<div class="share-total">
+           <span class="label">Total amount switched</span>
+           <span class="value">${fmtMoney(t.amount)}</span>
+         </div>`
+      : "";
+
+    const note = t.note ? `<div class="tc-note" style="margin-bottom:12px;">“${escapeHTML(t.note)}”</div>` : "";
+
+    const result = r ? verdictHTML(t, r, false) :
+      `<p class="muted small">No current prices included — save it, then hit Refresh to compute the result.</p>`;
+
+    body.innerHTML = legs + total + note + result;
     $("shareModal").classList.remove("hidden");
   }
 
